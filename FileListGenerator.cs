@@ -5,7 +5,8 @@ using System.IO;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
-using NestedDictionary = System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, int>>;
+using NestedDictionary =
+    System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, int>>;
 
 /// <summary>
 /// Select a game folder through the Tools menu
@@ -16,52 +17,67 @@ using NestedDictionary = System.Collections.Generic.Dictionary<string, System.Co
 /// The script then prompts you to save a text file in which it lists all the assets in the
 /// selected folder, the asset's guid, and a list of game assets its referenced by
 /// </summary>
-
 public class FileListGenerator
 {
-    // A dictionary in a dictionary: D(selectedAssetGUID,D(searchedAssetGUID,timesReferenced))
+    /// <summary>
+    /// A dictionary inside a dictionary: D(selectedAssetGUID,D(searchedAssetGUID,timesReferenced))
+    /// </summary>
     private NestedDictionary _assetsReferencedBy = new NestedDictionary();
-
-    // Add an option to the Tools menu
+    
+    /// <summary>
+    /// Add an option "Generate File List" to the Tools menu
+    /// </summary>
     [MenuItem("Tools/Generate File List")]
 
+    // A wrapper for the primary function GenerateFileList()
     public static void Main()
     {
         var fileListGenerator = new FileListGenerator();
         fileListGenerator.GenerateFileList();
     }
-    
-    // Main function - get a folder of assets and pre-build the dictionary
+
+    /// <summary>
+    /// The primary function that generates text file (in which it lists all the assets in the
+    /// selected folder, the asset's guid, and a list of game assets its referenced by)
+    /// </summary>
     private void GenerateFileList()
     {
         string[] selectedAssets = SelectAFolder();
-        
+
         PopulateDictionary(selectedAssets);
-        
+
         List<string> allAssets = GetAListOfAllGameAssets();
 
         // Go through each asset in a list of all game assets and get the guids
         foreach (var asset in allAssets)
         {
             var foundGuids = GetGuids(asset);
-            Debug.Log("I found some guids: " + foundGuids.Count);
-            
+            Debug.Log("There are " + foundGuids.Count + " guids in " + Path.GetFileName(asset));
+
             // Store the guids and the asset they came from in the nested dictionary
             AddFoundGuidsToDictionary(foundGuids, asset);
         }
+
         PrintOutList();
     }
+
+    /// <summary>
+    /// Browse and select a folder for which you want to generate a file list
+    /// </summary>
     private string[] SelectAFolder()
     {
-        // Browse to select a folder for which you want to generate a file list
         string selectedFolderPath = EditorUtility.OpenFolderPanel("Select Folder", "Assets/Bingo", "");
         Debug.Log("Selected folder path: " + selectedFolderPath);
-  
+
         // Returns a list of assets from the selected folder and it's subfolders
-        string[] selectedAssets = Directory.GetFiles(selectedFolderPath,"*.*", SearchOption.AllDirectories);
-        
+        string[] selectedAssets = Directory.GetFiles(selectedFolderPath, "*.*", SearchOption.AllDirectories);
+
         return selectedAssets;
     }
+
+    /// <summary>
+    /// Populate the dictionary with all the assets from the selected folder and its subfolders
+    /// </summary>
     private void PopulateDictionary(string[] selectedAssets)
     {
         // Go through each file in the selected folder
@@ -97,6 +113,10 @@ public class FileListGenerator
             }
         }
     }
+
+    /// <summary>
+    /// Print out a text file with a list of selected assets and files they are referenced by
+    /// </summary>
     private void PrintOutList()
     {
         string outputPath = EditorUtility.SaveFilePanel("Save Text File", "", "", "txt");
@@ -106,12 +126,12 @@ public class FileListGenerator
             {
                 // Convert GUID back to asset path
                 var guidToAsset = AssetDatabase.GUIDToAssetPath(entry.Key);
-            
+
                 // Get a file name with extension for the asset
                 var selectedAssetName = Path.GetFileName(guidToAsset);
 
                 writer.WriteLine(selectedAssetName + "   " + "GUID: " + entry.Key + '\n'
-                                 + "Path: " + guidToAsset + '\n' 
+                                 + "Path: " + guidToAsset + '\n'
                                  + "Referenced By: ");
                 foreach (KeyValuePair<string, int> entry2 in entry.Value)
                 {
@@ -119,10 +139,16 @@ public class FileListGenerator
                     var referencedAssetName = Path.GetFileName(entry2.Key);
                     writer.WriteLine('\t' + referencedAssetName);
                 }
+
                 writer.WriteLine('\n');
             }
+
         Debug.Log("File list generated at: " + outputPath);
     }
+
+    /// <summary>
+    /// Get a list of all game assets
+    /// </summary>
     private List<string> GetAListOfAllGameAssets()
     {
         // Create a list to hold all of the game's files to search for references in.
@@ -131,47 +157,53 @@ public class FileListGenerator
         // Specify what type of files you want to search for references in and add them to the above list
         // This will search through prefabs, materials, scenes, controllers, vfx graphs, assets
         // ("AddRange" appends these items to the end of the allPathsToAssetsList array)
-        var allPrefabs = Directory.GetFiles(Application.dataPath, "*.prefab", SearchOption.AllDirectories);
-        allPathsToAssetsList.AddRange(allPrefabs);
-        var allMaterials = Directory.GetFiles(Application.dataPath, "*.mat", SearchOption.AllDirectories);
-        allPathsToAssetsList.AddRange(allMaterials);
-        var allScenes = Directory.GetFiles(Application.dataPath, "*.unity", SearchOption.AllDirectories);
-        allPathsToAssetsList.AddRange(allScenes);
-        var allControllers = Directory.GetFiles(Application.dataPath, "*.controller", SearchOption.AllDirectories);
-        allPathsToAssetsList.AddRange(allControllers);
-        var allVfxGraphs = Directory.GetFiles(Application.dataPath, "*.vfx", SearchOption.AllDirectories);
-        allPathsToAssetsList.AddRange(allVfxGraphs);
-        var allAssets = Directory.GetFiles(Application.dataPath, "*.asset", SearchOption.AllDirectories);
-        allPathsToAssetsList.AddRange(allAssets);
+        allPathsToAssetsList.AddRange(Directory.GetFiles(Application.dataPath, "*.prefab",
+            SearchOption.AllDirectories));
+        allPathsToAssetsList.AddRange(Directory.GetFiles(Application.dataPath, "*.mat", SearchOption.AllDirectories));
+        allPathsToAssetsList.AddRange(Directory.GetFiles(Application.dataPath, "*.unity", SearchOption.AllDirectories));
+        allPathsToAssetsList.AddRange(Directory.GetFiles(Application.dataPath, "*.controller",
+            SearchOption.AllDirectories));
+        allPathsToAssetsList.AddRange(Directory.GetFiles(Application.dataPath, "*.vfx", SearchOption.AllDirectories));
+        allPathsToAssetsList.AddRange(Directory.GetFiles(Application.dataPath, "*.asset", SearchOption.AllDirectories));
 
         return allPathsToAssetsList;
     }
+
+    /// <summary>
+    /// Go through each line of text in every file and look for the lines with guid information in it
+    /// Pick out the guid and add it to the foundGuids list
+    /// </summary>
     private List<string> GetGuids(string asset)
     {
         var text = File.ReadAllText(asset);
         var lines = text.Split('\n');
-        
+
         List<string> foundGuids = new List<string>();
-            
+
         foreach (var line in lines)
-        {   
+        {
             string pattern = "guid:\\s*(\\w{32})";
 
-            if(line.Contains("guid:"))
+            if (!line.Contains("guid:"))
             {
-                MatchCollection matches = Regex.Matches(line, pattern);
+                continue;
+            }
 
-                Debug.Log("Matches: ");
-                foreach (Match match in matches)
-                {
-                    string foundGuid = match.Groups[1].ToString();
-                    foundGuids.Add(foundGuid);
-                }
+            MatchCollection matches = Regex.Matches(line, pattern);
+
+            foreach (Match match in matches)
+            {
+                string foundGuid = match.Groups[1].ToString();
+                foundGuids.Add(foundGuid);
             }
         }
+
         return foundGuids;
     }
-    
+
+    /// <summary>
+    /// Add found guids to the dictionary
+    /// </summary>
     private void AddFoundGuidsToDictionary(List<string> foundGuids, string searchedAsset)
     {
         foreach (string foundGuid in foundGuids)
@@ -180,8 +212,9 @@ public class FileListGenerator
             {
                 if (!_assetsReferencedBy[foundGuid].ContainsKey(searchedAsset))
                 {
-                    _assetsReferencedBy[foundGuid].Add(searchedAsset,0);
+                    _assetsReferencedBy[foundGuid].Add(searchedAsset, 0);
                 }
+
                 _assetsReferencedBy[foundGuid][searchedAsset]++;
             }
         }
